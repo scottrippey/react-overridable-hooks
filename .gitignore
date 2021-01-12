@@ -1,0 +1,6 @@
+# Generated
+node_modules
+dist
+
+# IDE
+.idea
