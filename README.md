@@ -1,32 +1,34 @@
 # `react-overridable-hooks`
 
-Makes it easy to override hooks, so that components can be easily tested.  This works well for unit tests and Storybook, by allowing you to mock out a deeply nested state.
+An easy way to override hooks!  Useful for:
+- Testing
+- Storybook
+- Mocking in development
 
-In production, the hook isn't touched, so there's no performance overhead.
 
 ### Setup
 
 Install via NPM `npm install --save react-overridable-hooks`  
-When running Storybook or tests, ensure `NODE_ENV=test` is set.
 
 ### Example
 
 `Counter.jsx`
 ```tsx
-import { overridableHook } from "./overridableHook";
+import { overridableHook } from "react-overridable-hooks";
 
 // A normal custom hook:
-function useCounterHook(initial: number = 0) {
+function useCounterHook(initial = 0) {
   const [count, setCount] = React.useState(initial);
   const increment = () => setCount((c) => c + 1);
   return { count, increment };
 }
+
 // An overridable version of the hook:
 export const [useCounter, CounterProvider] = overridableHook(useCounterHook);
 
-// A component that uses the hook
+// A component that uses the hook:
 export const Counter = ({ initial }) => {
-  const [ count, increment ] = useCounter(initial);
+  const { count, increment } = useCounter(initial);
   return <div>
     Count: {count}
     <button onClick={increment}> Increment </button>
@@ -34,6 +36,13 @@ export const Counter = ({ initial }) => {
 } 
 ```
 
+The `useCounter` hook, and the `<Counter />` component, will work normally without any other modifications.  
+
+However, we now have the ability to optionally use the `<CounterProvider value=...>` to override the hook's value with our own value.  We can use this provider in tests, Storybook, or even local development.
+
+#### Example with unit tests ()
+
+#### Example with Storybook
 `Counter.story.jsx`
 ```tsx
 import { Counter, CounterProvider } from './Counter';
