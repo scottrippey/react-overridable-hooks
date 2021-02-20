@@ -4,13 +4,10 @@ export type OverridableHookOptions = {
   /**
    * If true, then the HookOverrideProvider will be _required_,
    * and using the hook without a Provider will throw an error.
-   *
-   * @default true
    */
   required?: boolean;
   /**
-   * When false, the hook will be passed through untouched, and a HookOverrideProvider will not be provided
-   * @default true when NODE_ENV=test
+   * If false, the hook will be passed through untouched, and a HookOverrideProvider is not provided
    */
   enabled?: boolean;
 };
@@ -27,36 +24,39 @@ export type HookOverrideProvider<THook extends AnyFunction> = React.FC<{
   value?: THook | ReturnType<THook>;
 }>;
 
-const isTestEnv =
-  typeof process === "object" && process.env.NODE_ENV === "test";
-
-export const DummyProvider: HookOverrideProvider<any> = () => {
+export const NotEnabledProvider: HookOverrideProvider<any> = () => {
   const err = new Error(
-    "Warning: this HookOverrideProvider should only be used in tests. It should not be used in production code.\n" +
-      "Either set NODE_ENV=test, or remove this Provider from production code."
+    "Warning: you cannot use this HookOverrideProvider because this override is not enabled."
   );
-  Error.captureStackTrace(err, DummyProvider);
+  Error.captureStackTrace(err, NotEnabledProvider);
+  throw err;
+};
+export const NotEnabledTestProvider: HookOverrideProvider<any> = () => {
+  const err = new Error(
+    "Warning: this HookOverrideProvider should only be used in tests. Either set NODE_ENV=test, or remove this Provider from production code."
+  );
+  Error.captureStackTrace(err, NotEnabledTestProvider);
   throw err;
 };
 
 /**
- * Transparently wraps the hook, and returns it, along with a HookOverrideProvider.
+ * Wraps a hook, so that it can be overridden.
  *
- * When no HookOverrideProvider is used, the hook behaves normally.
- * The HookOverrideProvider is used to override the hook, and return a different value.
+ * By default, the wrapper is identical to the hook, and should be used in its place.
+ * When an OverrideProvider is present, it will override the hook, and supply its own value.
  *
- * This is especially useful for tests and for Storybook integration.
+ * This is especially useful for mocking, for tests, or for Storybook integration.
  *
  * @param hook - Any hook-like function
- * @param [options]
+ * @param [options] - Defaults: { required: false, enabled: true }
  */
 export function overridableHook<THook extends AnyFunction>(
   hook: THook,
-  { required = true, enabled = isTestEnv }: OverridableHookOptions = {}
+  { required = false, enabled = true }: OverridableHookOptions = {}
 ): [THook, HookOverrideProvider<THook>] {
   if (!enabled) {
     // In production, pass-through the hook, untouched:
-    return [hook, DummyProvider];
+    return [hook, NotEnabledProvider];
   }
 
   const context = React.createContext<
@@ -104,4 +104,26 @@ export function overridableHook<THook extends AnyFunction>(
   };
 
   return [hookOverride, HookOverrideProvider];
+}
+
+/**
+ * Identical to `overridableHook`, but only enabled when NODE_ENV=test.
+ *
+ * For non-test environments, there is no overhead; the original hook will be passed-through verbatim.
+ *
+ * @param hook - Any hook-like function
+ * @param [options]
+ */
+export function testableHook<THook extends AnyFunction>(
+  hook: THook,
+  {
+    required = true,
+    enabled = process.env.NODE_ENV === "test",
+  }: OverridableHookOptions = {}
+): [THook, HookOverrideProvider<THook>] {
+  if (!enabled) {
+    // In production, pass-through the hook, untouched:
+    return [hook, NotEnabledTestProvider];
+  }
+  return overridableHook(hook, { required, enabled });
 }
