@@ -33,7 +33,9 @@ export const NotEnabledProvider: HookOverrideProvider<any> = () => {
 };
 export const NotEnabledTestProvider: HookOverrideProvider<any> = () => {
   const err = new Error(
-    "Warning: this HookOverrideProvider should only be used in tests. Either set NODE_ENV=test, TESTABLE_HOOKS_ENABLED=true, or remove this Provider from production code."
+    "Warning: this HookOverrideProvider should only be used in tests. " +
+      "Either set NODE_ENV=test, STORYBOOK=true, TESTABLE_HOOKS_ENABLED=true, " +
+      "or remove this Provider from production code."
   );
   Error.captureStackTrace(err, NotEnabledTestProvider);
   throw err;
@@ -108,19 +110,21 @@ export function overridableHook<THook extends AnyFunction>(
 
 /**
  * Same as `overridableHook`, but enabled and required when:
- * - NODE_ENV=test or
- * - TESTABLE_HOOKS_ENABLED=true.
+ * - NODE_ENV=test (the default for Jest)
+ * - STORYBOOK=true (the default for Storybook)
+ * - TESTABLE_HOOKS_ENABLED=true (manually set by you)
  *
  * For non-test environments, there is no overhead; the original hook will be passed-through verbatim.
  *
  * @param hook - Any hook-like function
- * @param [options] - Defaults: { required: true, enabled: NODE_ENV === 'test' || TESTABLE_HOOKS_ENABLED === 'true' }
+ * @param [options] - Defaults: { required: true, enabled: NODE_ENV === 'test' || STORYBOOK === 'true' || TESTABLE_HOOKS_ENABLED === 'true' }
  */
 export function testableHook<THook extends AnyFunction>(
   hook: THook,
   {
     required = true,
     enabled = process.env.NODE_ENV === "test" ||
+      process.env.STORYBOOK === "true" ||
       process.env.TESTABLE_HOOKS_ENABLED === "true",
   }: OverridableHookOptions = {}
 ): [THook, HookOverrideProvider<THook>] {

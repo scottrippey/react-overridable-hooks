@@ -72,26 +72,17 @@ import { testableHook } from 'react-overridable-hooks';
 export const [ useCounter, CounterOverride ] = testableHook(useCounterHook);
 ```
 
-Same syntax as `overridableHook`, but hooks are only overridable when:  
-- `NODE_ENV=test` or  
-- `TESTABLE_HOOKS_ENABLED=true`
+Same syntax as `overridableHook`, but hooks are only overridable in these scenarios:  
+- `NODE_ENV=test` (the default for Jest)
+- `STORYBOOK=true` (the default for Storybook)
+- `TESTABLE_HOOKS_ENABLED=true` (manually set by you)
 
 This means:
 
 - Hooks **cannot** be overridden in **development** or **production**.
-- Hooks **must** be overridden in **tests**
+- Hooks **must** be overridden in **tests** or **storybook**.
 
 This ensures zero-performance overhead in production (because `useCounter === useCounterHook`) while still making your components testable.
-
-To use this with Storybook, be sure to enable testable hooks in your `package.json` like:
-
-```json
-{
-  "scripts": {
-    "storybook": "TESTABLE_HOOKS_ENABLED=true storybook"
-  }
-}
-```
 
 ## More Examples
 - Storybook Examples: [./examples/Counter.stories.tsx](./examples/Counter.stories.tsx)
