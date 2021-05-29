@@ -40,10 +40,10 @@ export const NotEnabledTestProvider: HookOverrideProvider<any> = () => {
 };
 
 /**
- * Wraps a hook, so that it can be overridden.
+ * Wraps a hook, so that it can be optionally overridden.
  *
- * By default, the wrapper is identical to the hook, and should be used in its place.
- * When an OverrideProvider is present, it will override the hook, and supply its own value.
+ * By default, the returned wrapper is identical to the hook, and should be used in its place.
+ * But when an OverrideProvider is present, it will override the hook, and supply its own value.
  *
  * This is especially useful for mocking, for tests, or for Storybook integration.
  *
@@ -107,18 +107,21 @@ export function overridableHook<THook extends AnyFunction>(
 }
 
 /**
- * Identical to `overridableHook`, but only enabled when NODE_ENV=test.
+ * Same as `overridableHook`, but enabled and required when:
+ * - NODE_ENV=test or
+ * - TESTABLE_HOOKS_ENABLED=true.
  *
  * For non-test environments, there is no overhead; the original hook will be passed-through verbatim.
  *
  * @param hook - Any hook-like function
- * @param [options]
+ * @param [options] - Defaults: { required: true, enabled: NODE_ENV === 'test' || TESTABLE_HOOKS_ENABLED === 'true' }
  */
 export function testableHook<THook extends AnyFunction>(
   hook: THook,
   {
     required = true,
-    enabled = process.env.NODE_ENV === "test",
+    enabled = process.env.NODE_ENV === "test" ||
+      process.env.TESTABLE_HOOKS_ENABLED === "true",
   }: OverridableHookOptions = {}
 ): [THook, HookOverrideProvider<THook>] {
   if (!enabled) {

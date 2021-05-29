@@ -30,6 +30,7 @@ export const WithDynamicValue = (
 export const WithNoValue = (
   <>
     or even no value (uses actual hook):
+    <Counter /> Renders "Count: 0"
     <CounterProvider>
       <Counter /> Renders "Count: 0"
     </CounterProvider>
