@@ -1,6 +1,6 @@
 {
   "name": "react-overridable-hooks",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Provides an easy way to mock hooks, for testing and for Storybook integration",
   "main": "dist/overridableHook.js",
   "files": [
