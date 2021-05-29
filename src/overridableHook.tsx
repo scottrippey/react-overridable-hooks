@@ -33,7 +33,7 @@ export const NotEnabledProvider: HookOverrideProvider<any> = () => {
 };
 export const NotEnabledTestProvider: HookOverrideProvider<any> = () => {
   const err = new Error(
-    "Warning: this HookOverrideProvider should only be used in tests. Either set NODE_ENV=test, or remove this Provider from production code."
+    "Warning: this HookOverrideProvider should only be used in tests. Either set NODE_ENV=test, TESTABLE_HOOKS_ENABLED=true, or remove this Provider from production code."
   );
   Error.captureStackTrace(err, NotEnabledTestProvider);
   throw err;
