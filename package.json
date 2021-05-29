@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/scottrippey/react-overridable-hooks#readme",
   "peerDependencies": {
-    "react": "^16.8.0"
+    "react": ">=16.8.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.17",
