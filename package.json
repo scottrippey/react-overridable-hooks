@@ -1,6 +1,6 @@
 {
   "name": "react-overridable-hooks",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Provides an easy way to mock hooks, for testing and for Storybook integration",
   "main": "dist/overridableHook.js",
   "files": [
@@ -29,7 +29,6 @@
     "url": "https://github.com/scottrippey/react-overridable-hooks/issues"
   },
   "homepage": "https://github.com/scottrippey/react-overridable-hooks#readme",
-  "dependencies": {},
   "peerDependencies": {
     "react": "^16.8.0"
   },
