@@ -1,100 +1,98 @@
 # `react-overridable-hooks`
 
-An easy way to override hooks!  Useful for:
-- Testing
-- Storybook
-- Mocking in development
+An easy way to mock a custom React hook.  Especially useful for:
+- Mocking state in Storybook
+- Unit testing
 
+```sh
+npm install --save react-overridable-hooks
+```
 
-### Setup
+# `overridableHook`
 
-Install via NPM `npm install --save react-overridable-hooks`  
-
-# API
-
-## `overridableHook`
-`const [ hookWrapper, OverrideProvider ] = overridableHook(hook);`  
-
-Wraps a hook, so that it can be overridden.
-
-By default, the hook wrapper is identical to the hook, and should be used in its place.
-When an `OverrideProvider` is present, it will override the hook, and supply its own value.
-
-#### Example: `Counter.jsx`
+Creates an overridable version of a hook.  
 
 ```tsx
 import { overridableHook } from "react-overridable-hooks";
 
 // A normal custom hook:
-function useCounterHook(initial = 0) {
-  const [count, setCount] = React.useState(initial);
+function useCounterHook() {
+  const [ count, setCount ] = React.useState(0);
   const increment = () => setCount((c) => c + 1);
   return { count, increment };
 }
 
 // An overridable version of the hook:
-export const [useCounter, CounterProvider] = overridableHook(useCounterHook);
+export const [ useCounter, CounterOverride ] = overridableHook(useCounterHook);
 
-// A component that uses the hook:
-export const Counter = ({ initial }) => {
-  const { count, increment } = useCounter(initial);
+// A component uses the hook normally:
+export const Counter = () => {
+  const { count, increment } = useCounter();
   return <div>
     Count: {count}
     <button onClick={increment}> Increment </button>
   </div>;
-} 
+}
 ```
 
-The `useCounter` hook, and the `<Counter />` component, will work normally without any other modifications.  
-
-However, we now have the ability to optionally use the `<CounterProvider value={...}>` to override the hook's value with our own value.  We can use this provider in tests, Storybook, or even local development.  Here's an example:
-
-#### Example usage: `Counter.stories.jsx`
+We can mock the hook's value in **Storybook**:
 ```jsx
-import { Counter, CounterProvider } from './Counter';
-
-const increment = () => console.log('increment');
-
-export const WithMockValues = <>
-  We can provide a static value:
-  <CounterProvider value={{ count: 99, increment }}>
-    <Counter /> Renders "Count: 99"
-  </CounterProvider>
-  
-  or a dynamic value:
-  <CounterProvider value={(initial) => { count: initial * 1000, increment }}>
-    <Counter initial={5} /> Renders "Count: 5000"
-    <Counter initial={6} /> Renders "Count: 6000"
-  </CounterProvider>
-  
-  or even no value (uses actual hook):
-  <CounterProvider>
-    <Counter /> - Renders "Count: 0"
-  </CounterProvider>
-</>;
+export const NormalCounter = () => (
+  <Counter /> // renders "Count: 0"
+);
+export const WithBigValue = () => (
+  <CounterOverride value={{ count: 999, increment: action('increment') }}>
+    <Counter /> <!-- renders "Count: 999" -->
+  </CounterOverride>
+);
 ```
 
-#### More Examples
-More examples can be found in [./examples](./examples)
-
-
-### Using ONLY for tests, but not production
-
-If you only want to use overridable hooks for tests, but not in production code, there is a `enabled` option that can be set to `false`:
-
+We can mock the hook's value in **Unit Tests**:
 ```jsx
-const [ useCounter, CounterMockProvider ] = overridableHook(useCounterHook, {
-  enabled: process.env.NODE_ENV === "test" 
+describe('Counter', () => {
+  it("should show the count", () => {
+    const state = { count: 99, increment: jest.fn() };
+    const wrapper = ({ children }) => (
+      <CounterOverride value={value}>{children}</CounterOverride>
+    );
+    
+    render(<Counter />, { wrapper })
+    
+    expect(screen.getByText("Count: 99")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Increment"));
+    expect(state.increment).toHaveBeenCalledTimes(1)
+  });
 });
 ```
-With `enabled: false`, the hook will NOT be wrapped at all; it will be returned as-is (`useCounter === useCounterHook`).  This ensures there is no performance overhead in production code, and the OverrideProvider can only be used in tests.
 
-#### `testableHook`
-
-This is such a common pattern, that a utility method is available, `testableHook`, that performs the same `NODE_ENV` check:
-```js
+# `testableHook`
+```jsx
 import { testableHook } from 'react-overridable-hooks';
 
-const [ useCounter, CounterMockProvider ] = testableHook(useCounterHook);
-// In production, useCounter === useCounterHook
+export const [ useCounter, CounterOverride ] = testableHook(useCounterHook);
 ```
+
+Same syntax as `overridableHook`, but hooks are only overridable when:  
+- `NODE_ENV=test` or  
+- `TESTABLE_HOOKS_ENABLED=true`
+
+This means:
+
+- Hooks **cannot** be overridden in **development** or **production**.
+- Hooks **must** be overridden in **tests**
+
+This ensures zero-performance overhead in production (because `useCounter === useCounterHook`) while still making your components testable.
+
+To use this with Storybook, be sure to enable testable hooks in your `package.json` like:
+
+```json
+{
+  "scripts": {
+    "storybook": "TESTABLE_HOOKS_ENABLED=true storybook"
+  }
+}
+```
+
+## More Examples
+- Storybook Examples: [./examples/Counter.stories.tsx](./examples/Counter.stories.tsx)
+- Unit Test Examples: [./examples/Counter.test.tsx](./examples/Counter.test.tsx)
