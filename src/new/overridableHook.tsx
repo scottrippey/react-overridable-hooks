@@ -2,10 +2,9 @@ import React, { createContext, FC, useContext, useDebugValue } from "react";
 import { OverridableHookOptions } from "../overridableHook";
 
 type AnyFunction = (...args: any) => any;
-export type AnyHook = AnyFunction & { displayName?: string };
-const isOverridableHook = Symbol("isOverridableHook");
+export type AnyHook = AnyFunction;
 export type OverridableHook<THook extends AnyHook> = THook & {
-  [isOverridableHook]: unknown;
+  isOverridableHook: unknown;
 };
 
 type HookOverridesType = {
@@ -16,16 +15,15 @@ type HookOverridesType = {
 const HookOverridesContext = createContext<HookOverridesType | null>(null);
 HookOverridesContext.displayName = "HookOverridesContext";
 
-export type HooksToOverride = { [propName: string]: OverridableHook<AnyHook> };
-export type OverridesProviderProps<THookToOverride extends HooksToOverride> = {
-  [PropName in keyof THookToOverride]?: Partial<THookToOverride[PropName]>;
-};
-
 export function createOverridesProvider<
-  THooksToOverride extends HooksToOverride
->(hooksToOverride: THooksToOverride) {
-  const HookOverridesProvider: FC<OverridesProviderProps<THooksToOverride>> = ({
+  THookOverrides extends { [propName: string]: OverridableHook<AnyHook> }
+>(hooksToOverride: THookOverrides) {
+  type HookOverridesProviderProps = { help?: boolean | "warn" | "error" } & {
+    [P in keyof THookOverrides]?: Omit<THookOverrides[P], "isOverridableHook">;
+  };
+  const HookOverridesProvider: FC<HookOverridesProviderProps> = ({
     children,
+    help,
     ...hookOverrides
   }) => {
     const parent = useContext(HookOverridesContext);
@@ -40,14 +38,30 @@ export function createOverridesProvider<
       getHookOverride(hookWrapper) {
         const override =
           map.get(hookWrapper) || parent?.getHookOverride(hookWrapper) || null;
-        if (!override) {
-          throw captureError(
-            `react-overridable-hooks: Missing hook override for ${getName(
-              hookWrapper
-            )}`,
-            value.getHookOverride
-          );
+
+        if (!override && help) {
+          let error: Error;
+          if (!Object.values(hooksToOverride).includes(hookWrapper)) {
+            error = new Error(
+              `react-overridable-hooks: register "${
+                hookWrapper.isOverridableHook
+              }" by adding it to createOverridesProvider({ ${Object.keys(
+                hooksToOverride
+              ).join(", ")} })`
+            );
+          } else {
+            error = new Error(
+              `react-overridable-hooks: no override was supplied for "${hookWrapper.isOverridableHook}"`
+            );
+          }
+          Error.captureStackTrace(error, value.getHookOverride);
+          if (help === "warn") {
+            console.warn(error);
+          } else {
+            throw error;
+          }
         }
+
         return override;
       },
     } as HookOverridesType;
@@ -88,34 +102,22 @@ export function overridableHook<THook extends AnyHook>(
   const hookWrapper = ((...args) => {
     const ctx = useContext(HookOverridesContext);
     const override = ctx?.getHookOverride(hookWrapper);
-    const hookName = hook.displayName || hook.name;
 
     if (override) {
-      useDebugValue(`HookOverride(${hookName || "hook"})`);
+      useDebugValue(`(overridden)`);
       return override(...args);
     } else {
-      useDebugValue(hookName);
       return hook(...args);
     }
   }) as OverridableHook<THook>;
 
   // Add some metadata:
-  setName(hookWrapper, `OverridableHook(${hook.name})`);
-  hookWrapper[isOverridableHook] = isOverridableHook;
+  setFunctionName(hookWrapper, `${hook.name}(overridable)`);
+  hookWrapper.isOverridableHook = hook.name || "overridableHook";
 
   return hookWrapper;
 }
 
-function getName(hook: AnyHook): string {
-  const name = hook.displayName || hook.name;
-  return name ? `"${name}"` : "hook";
-}
-function setName(hook: AnyHook, name: string) {
-  Object.defineProperty(hook, "name", { value: name });
-}
-
-function captureError(message: string, scope: Function): Error {
-  const err = new Error(message);
-  Error.captureStackTrace(err, scope);
-  return err;
+function setFunctionName(fn: AnyFunction, name: string) {
+  Object.defineProperty(fn, "name", { value: name });
 }
