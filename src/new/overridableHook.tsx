@@ -2,88 +2,120 @@ import React, { createContext, FC, useContext, useDebugValue } from "react";
 import { OverridableHookOptions } from "../overridableHook";
 
 type AnyFunction = (...args: any) => any;
-
-export type HookOverrides = {
-  getHookOverride<T extends AnyFunction>(hook: T): T | null;
+export type AnyHook = AnyFunction & { displayName?: string };
+const isOverridableHook = Symbol("isOverridableHook");
+export type OverridableHook<THook extends AnyHook> = THook & {
+  [isOverridableHook]: unknown;
 };
-const OverridesContext = createContext<HookOverrides | null>(null);
-OverridesContext.displayName = "HookOverridesContext";
+
+type HookOverridesType = {
+  getHookOverride<THook extends OverridableHook<AnyHook>>(
+    hookWrapper: THook
+  ): THook | null;
+};
+const HookOverridesContext = createContext<HookOverridesType | null>(null);
+HookOverridesContext.displayName = "HookOverridesContext";
+
+export type HooksToOverride = { [propName: string]: OverridableHook<AnyHook> };
+export type OverridesProviderProps<THookToOverride extends HooksToOverride> = {
+  [PropName in keyof THookToOverride]?: Partial<THookToOverride[PropName]>;
+};
 
 export function createOverridesProvider<
-  THookOverrides extends { [propName: string]: AnyFunction }
->(hooksToOverride: THookOverrides): FC<Partial<THookOverrides>> {
-  const HookOverridesProvider: FC<Partial<THookOverrides>> = ({
+  THooksToOverride extends HooksToOverride
+>(hooksToOverride: THooksToOverride) {
+  const HookOverridesProvider: FC<OverridesProviderProps<THooksToOverride>> = ({
     children,
-    ...overrides
+    ...hookOverrides
   }) => {
-    const parent = useContext(OverridesContext);
+    const parent = useContext(HookOverridesContext);
     const map = new Map(
-      Object.keys(overrides).map((hookName) => {
+      Object.keys(hookOverrides).map((hookName) => {
         const key = hooksToOverride[hookName];
-        const value = overrides[hookName];
+        const value = hookOverrides[hookName];
         return [key, value];
       })
     );
     const value = {
-      getHookOverride(hook) {
-        return map.get(hook) || parent?.getHookOverride(hook) || null;
+      getHookOverride(hookWrapper) {
+        const override =
+          map.get(hookWrapper) || parent?.getHookOverride(hookWrapper) || null;
+        if (!override) {
+          throw captureError(
+            `react-overridable-hooks: Missing hook override for ${getName(
+              hookWrapper
+            )}`,
+            value.getHookOverride
+          );
+        }
+        return override;
       },
-    } as HookOverrides;
+    } as HookOverridesType;
 
     return (
-      <OverridesContext.Provider value={value}>
+      <HookOverridesContext.Provider value={value}>
         {children}
-      </OverridesContext.Provider>
+      </HookOverridesContext.Provider>
     );
   };
 
+  // Improve the displayName:
   const hookNames = Object.keys(hooksToOverride).join(",");
   HookOverridesProvider.displayName = `HookOverridesProvider(${hookNames})`;
 
   return HookOverridesProvider;
 }
 
-export function testableHook<T extends AnyFunction>(
+export function testableHook<T extends AnyHook>(
   hook: T,
   {
-    required = true,
     enabled = process.env.NODE_ENV === "test" ||
       process.env.STORYBOOK === "true" ||
       process.env.TESTABLE_HOOKS_ENABLED === "true",
   }: OverridableHookOptions = {}
-): T {
-  return overridableHook(hook, { required, enabled });
+) {
+  return overridableHook(hook, { enabled });
 }
 
-export function overridableHook<T extends AnyFunction>(
-  hook: T,
-  { required = false, enabled = true }: OverridableHookOptions = {}
-): T {
+export function overridableHook<THook extends AnyHook>(
+  hook: THook,
+  { enabled = true }: OverridableHookOptions = {}
+): OverridableHook<THook> {
   if (!enabled) {
-    return hook;
+    return hook as OverridableHook<THook>;
   }
 
-  const hookOverride = ((...args) => {
-    const ctx = useContext(OverridesContext);
-    const override = ctx?.getHookOverride(hookOverride);
+  const hookWrapper = ((...args) => {
+    const ctx = useContext(HookOverridesContext);
+    const override = ctx?.getHookOverride(hookWrapper);
+    const hookName = hook.displayName || hook.name;
 
     if (override) {
-      useDebugValue(`Overridden(${hook.name || "Hook"})`);
+      useDebugValue(`HookOverride(${hookName || "hook"})`);
       return override(...args);
-    }
-
-    if (!required) {
+    } else {
+      useDebugValue(hookName);
       return hook(...args);
     }
+  }) as OverridableHook<THook>;
 
-    const error = new Error(
-      `react-overridable-hooks: ${
-        !ctx ? "Missing hook provider" : "Missing hook override"
-      }${!hook.name ? "" : ` for "${hook.name}"`}`
-    );
-    Error.captureStackTrace(error, hookOverride);
-    throw error;
-  }) as T;
+  // Add some metadata:
+  setName(hookWrapper, `OverridableHook(${hook.name})`);
+  hookWrapper[isOverridableHook] = isOverridableHook;
 
-  return hookOverride;
+  return hookWrapper;
+}
+
+function getName(hook: AnyHook): string {
+  const name = hook.displayName || hook.name;
+  return name ? `"${name}"` : "hook";
+}
+function setName(hook: AnyHook, name: string) {
+  Object.defineProperty(hook, "name", { value: name });
+}
+
+function captureError(message: string, scope: Function): Error {
+  const err = new Error(message);
+  Error.captureStackTrace(err, scope);
+  return err;
 }
