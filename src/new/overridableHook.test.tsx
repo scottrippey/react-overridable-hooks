@@ -11,15 +11,25 @@ function useCounterRaw(initial = 0) {
 function useToggleRaw(initial = false) {
   const [toggled, setToggle] = React.useState(initial);
   const toggle = React.useCallback(
-    (toggled: boolean) => setToggle((t) => toggled ?? !t),
+    (toggled?: boolean) => setToggle((t) => toggled ?? !t),
     []
   );
   return { toggled, toggle };
 }
 
 describe("overridableHook", () => {
+  // Some "real" hooks:
   const useCounter = overridableHook(useCounterRaw);
   const useToggle = overridableHook(useToggleRaw);
+  const useCounterAndToggle = () => {
+    return { ...useCounter(), ...useToggle() };
+  };
+
+  // Some overrides:
+  const increment = jest.fn();
+  const useCounterMock = (initial = 0) => ({ count: 55, increment });
+  const toggle = jest.fn();
+  const useToggleMock = () => ({ toggled: true, toggle });
 
   const HookOverrides = createOverridesProvider({
     useCounter,
@@ -42,15 +52,9 @@ describe("overridableHook", () => {
     expect(result.current).toMatchObject({ count: 1 });
   });
 
-  it("the hook can be overridden with a mock hook", () => {
-    const increment = jest.fn();
+  it("a hook can be overridden with a mock hook", () => {
     const { result, rerender } = renderHook(() => useCounter(), {
-      wrapper: (p) => (
-        <HookOverrides
-          useCounter={(initial = 0) => ({ count: 55, increment })}
-          {...p}
-        />
-      ),
+      wrapper: (p) => <HookOverrides useCounter={useCounterMock} {...p} />,
     });
     expect(result.current).toMatchObject({ count: 55 });
     act(() => result.current.increment());
@@ -59,6 +63,48 @@ describe("overridableHook", () => {
 
     rerender();
     expect(result.current).toMatchObject({ count: 55 });
+  });
+
+  it("multiple hooks can be overridden", () => {
+    const { result, rerender } = renderHook(() => useCounterAndToggle(), {
+      wrapper: (p) => (
+        <HookOverrides
+          useCounter={useCounterMock}
+          useToggle={useToggleMock}
+          {...p}
+        />
+      ),
+    });
+    expect(result.current).toMatchObject({ count: 55, toggled: true });
+    act(() => result.current.increment());
+    act(() => result.current.toggle());
+    expect(result.current).toMatchObject({ count: 55, toggled: true });
+    expect(increment).toHaveBeenCalled();
+    expect(toggle).toHaveBeenCalled();
+
+    rerender();
+    expect(result.current).toMatchObject({ count: 55, toggled: true });
+  });
+
+  it("nested providers can be used", () => {
+    const { result, rerender } = renderHook(() => useCounterAndToggle(), {
+      wrapper: (p) => (
+        <HookOverrides useCounter={useCounterMock}>
+          <HookOverrides useToggle={useToggleMock}>
+            <HookOverrides>{p.children}</HookOverrides>
+          </HookOverrides>
+        </HookOverrides>
+      ),
+    });
+    expect(result.current).toMatchObject({ count: 55, toggled: true });
+    act(() => result.current.increment());
+    act(() => result.current.toggle());
+    expect(result.current).toMatchObject({ count: 55, toggled: true });
+    expect(increment).toHaveBeenCalled();
+    expect(toggle).toHaveBeenCalled();
+
+    rerender();
+    expect(result.current).toMatchObject({ count: 55, toggled: true });
   });
 
   describe("with the 'help' flag", () => {
@@ -80,6 +126,31 @@ describe("overridableHook", () => {
       expect(result.error).toMatchInlineSnapshot(
         `[Error: react-overridable-hooks: no override was supplied for "useCounterRaw"]`
       );
+    });
+
+    it("no errors are thrown when all overrides are provided", () => {
+      const { result } = renderHook(() => useCounterAndToggle(), {
+        wrapper: (p) => (
+          <HookOverrides
+            help
+            useCounter={useCounterMock}
+            useToggle={useToggleMock}
+          >
+            {p.children}
+          </HookOverrides>
+        ),
+      });
+      expect(result.current).toMatchObject({ count: 55, toggled: true });
+    });
+
+    it("even when nested, unexpected hooks throw errors", () => {
+      const { result } = renderHook(() => useCounterAndToggle(), {
+        wrapper: (p) => (
+          <HookOverrides help>
+            <HookOverrides useCounter={() => {}}>{p.children}</HookOverrides>
+          </HookOverrides>
+        ),
+      });
     });
   });
 
