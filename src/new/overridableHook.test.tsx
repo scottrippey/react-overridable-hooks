@@ -18,97 +18,85 @@ function useToggleRaw(initial = false) {
 }
 
 describe("overridableHook", () => {
-  describe("with default options", () => {
-    const useCounter = overridableHook(useCounterRaw);
-    const useToggle = overridableHook(useToggleRaw);
+  const useCounter = overridableHook(useCounterRaw);
+  const useToggle = overridableHook(useToggleRaw);
 
-    const HookOverrides = createOverridesProvider({
-      useCounter,
-      useToggle,
-    });
-
-    it("with no Provider, the hook behaves normally", () => {
-      const { result } = renderHook(() => useCounter());
-      expect(result.current).toMatchObject({ count: 0 });
-      act(() => result.current.increment());
-      expect(result.current).toMatchObject({ count: 1 });
-    });
-
-    it("with an empty Provider, the hook behaves normally", () => {
-      const { result } = renderHook(() => useCounter(), {
-        wrapper: (p) => <HookOverrides {...p} />,
-      });
-      expect(result.current).toMatchObject({ count: 0 });
-      act(() => result.current.increment());
-      expect(result.current).toMatchObject({ count: 1 });
-    });
-
-    it("the hook can be overridden with a mock hook", () => {
-      const increment = jest.fn();
-      const useCounterMock: typeof useCounter = (initial = 0) => ({
-        count: initial,
-        increment,
-      });
-
-      const { result, rerender } = renderHook(
-        ({ initial }) => useCounter(initial),
-        {
-          wrapper: (p) => <HookOverrides useCounter={useCounterMock} {...p} />,
-          initialProps: { initial: 77 },
-        }
-      );
-      expect(result.current).toMatchObject({ count: 77 });
-      act(() => result.current.increment());
-      expect(result.current).toMatchObject({ count: 77 });
-      expect(increment).toHaveBeenCalled();
-
-      rerender({ initial: 88 });
-      expect(result.current).toMatchObject({ count: 88 });
-    });
+  const HookOverrides = createOverridesProvider({
+    useCounter,
+    useToggle,
   });
 
-  describe("when required", () => {
-    // const [
-    //   useCounterRequired,
-    //   CounterProviderRequired,
-    // ] = overridableHook(useCounterRaw, { required: true });
-    //
-    // it.skip("with no Provider, the hook throws an error", () => {
-    //   const { result } = renderHook(() => useCounterRequired());
-    //
-    //   expect(result.error).toMatchInlineSnapshot(
-    //     `[Error: Missing hook override Provider for 'useCounterHook' hook]`
-    //   );
-    // });
-    // it.skip("with no value, the Provider uses the original hook", () => {
-    //   const { result } = renderHook(() => useCounterRequired(), {
-    //     wrapper: (p) => <CounterProviderRequired {...p} />,
-    //   });
-    //   expect(result.current).toMatchObject({ count: 0 });
-    //   act(() => result.current.increment());
-    //   expect(result.current).toMatchObject({ count: 1 });
-    // });
+  it("with no Provider, the hook behaves normally", () => {
+    const { result } = renderHook(() => useCounter());
+    expect(result.current).toMatchObject({ count: 0 });
+    act(() => result.current.increment());
+    expect(result.current).toMatchObject({ count: 1 });
+  });
+
+  it("with an empty Provider, the hook behaves normally", () => {
+    const { result } = renderHook(() => useCounter(), {
+      wrapper: (p) => <HookOverrides>{p.children}</HookOverrides>,
+    });
+    expect(result.current).toMatchObject({ count: 0 });
+    act(() => result.current.increment());
+    expect(result.current).toMatchObject({ count: 1 });
+  });
+
+  it("the hook can be overridden with a mock hook", () => {
+    const increment = jest.fn();
+    const { result, rerender } = renderHook(() => useCounter(), {
+      wrapper: (p) => (
+        <HookOverrides
+          useCounter={(initial = 0) => ({ count: 55, increment })}
+          {...p}
+        />
+      ),
+    });
+    expect(result.current).toMatchObject({ count: 55 });
+    act(() => result.current.increment());
+    expect(result.current).toMatchObject({ count: 55 });
+    expect(increment).toHaveBeenCalled();
+
+    rerender();
+    expect(result.current).toMatchObject({ count: 55 });
+  });
+
+  describe("with the 'help' flag", () => {
+    const useUnexpectedHook = overridableHook(function unexpectedHook() {});
+
+    it("unexpected hooks throw errors", () => {
+      const { result } = renderHook(() => useUnexpectedHook(), {
+        wrapper: (p) => <HookOverrides help {...p} />,
+      });
+      expect(result.error).toMatchInlineSnapshot(
+        `[Error: react-overridable-hooks: register "unexpectedHook" by adding it to createOverridesProvider({ useCounter, useToggle })]`
+      );
+    });
+
+    it("empty hooks throw errors", () => {
+      const { result } = renderHook(() => useCounter(), {
+        wrapper: (p) => <HookOverrides help {...p} />,
+      });
+      expect(result.error).toMatchInlineSnapshot(
+        `[Error: react-overridable-hooks: no override was supplied for "useCounterRaw"]`
+      );
+    });
   });
 
   describe("when not enabled", () => {
-    // const [useCounterProd, CounterProviderProd] = overridableHook(
-    //   useCounterRaw,
-    //   { enabled: false }
-    // );
-    //
-    // it.skip("the hook is passed through untouched", () => {
-    //   expect(useCounterProd).toBe(useCounterRaw);
-    // });
-    //
-    // it.skip("the supplied Provider throws an error if used", () => {
-    //   expect(() => {
-    //     // TODO: prevent React from logging the warning message:
-    //     renderHook(() => useCounterProd(), {
-    //       wrapper: (p) => <CounterProviderProd {...p} />,
-    //     });
-    //   }).toThrowErrorMatchingInlineSnapshot(
-    //     `"Warning: you cannot use this HookOverrideProvider because this override is not enabled."`
-    //   );
-    // });
+    const useHookRaw = jest.fn();
+    const useHookEnabled = overridableHook(useHookRaw, { enabled: true });
+    const useHookDisabled = overridableHook(useHookRaw, { enabled: false });
+
+    it("enabled hooks should return new hooks", () => {
+      expect(useHookEnabled).not.toBe(useHookRaw);
+      renderHook(() => useHookEnabled());
+      expect(useHookRaw).toHaveBeenCalledTimes(1);
+    });
+    it("disabled hooks should return the original hook, unmodified", () => {
+      expect(useHookDisabled).toBe(useHookRaw);
+      renderHook(() => useHookDisabled());
+      expect(useHookRaw).toHaveBeenCalledTimes(1);
+    });
   });
 });
