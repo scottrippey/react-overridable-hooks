@@ -1,12 +1,16 @@
 import React, { createContext, FC, useContext, useDebugValue } from "react";
-import { OverridableHookOptions } from "../overridableHook";
 
 type AnyFunction = (...args: any) => any;
 export type AnyHook = AnyFunction;
 export type OverridableHook<THook extends AnyHook> = THook & {
-  isOverridableHook: unknown;
+  /**
+   * This property is used to identify an overridable hook.
+   * It also holds the name of the actual raw hook (if supplied) for debugging purposes.
+   */
+  isOverridableHook: string;
 };
 
+// Used internally
 type HookOverridesType = {
   getHookOverride<THook extends OverridableHook<AnyHook>>(
     hookWrapper: THook
@@ -15,13 +19,64 @@ type HookOverridesType = {
 const HookOverridesContext = createContext<HookOverridesType | null>(null);
 HookOverridesContext.displayName = "HookOverridesContext";
 
-export function createOverridesProvider<
-  THookOverrides extends { [propName: string]: OverridableHook<AnyHook> }
+/**
+ * This Provider allows us to override any of the registered hooks.
+ *
+ * Each hook override should match the original hook signature.
+ *
+ * If needed, add the `help` or `help='warn'` property to help identify which hooks can be overridden.
+ */
+type HookOverridesProvider<THookOverrides extends HookOverridesBase> = FC<
+  {
+    /**
+     * When true, an error will be thrown for any overridable hooks that are not mocked.
+     * This makes it easy to find overridable hooks.
+     * Once all overridable hooks are mocked, the `help` prop can be removed.
+     *
+     * "warn" will simply log to the console, instead of throwing an error.
+     */
+    help?: boolean | "warn" | "error";
+  } & {
+    /**
+     * Overrides a hook with a new function.  Signatures should match.
+     * Overrides are optional; if not supplied, the original hook will be used.
+     */
+    [P in keyof THookOverrides]?: THookOverrides[P] extends OverridableHook<
+      infer THook
+    >
+      ? THook
+      : THookOverrides[P];
+  }
+>;
+
+export type HookOverridesBase = {
+  /**
+   * A list of all hooks that can be overridden by this provider
+   */
+  [propName: string]: OverridableHook<AnyHook>;
+};
+
+/**
+ * Creates a HookOverridesProvider which can be used to override hooks.
+ *
+ * @example
+ * const HookOverrides = createHookOverridesProvider({ useCounter, useToggle });
+ * const Example = () => (
+ *   <HookOverrides
+ *     useCounter={() => ({ count: 99 })}
+ *     useToggle={() => ({ toggled: true })}
+ *   >
+ *     <Counter>
+ *   </HookOverrides>;
+ * );
+ *
+ * @param hooksToOverride An object that lists all hooks which this provider should be able to override.
+ *                        These hooks must have been wrapped with `testableHook` or `overridableHook`.
+ */
+export function createHookOverridesProvider<
+  THookOverrides extends HookOverridesBase
 >(hooksToOverride: THookOverrides) {
-  type HookOverridesProviderProps = { help?: boolean | "warn" | "error" } & {
-    [P in keyof THookOverrides]?: Omit<THookOverrides[P], "isOverridableHook">;
-  };
-  const HookOverridesProvider: FC<HookOverridesProviderProps> = ({
+  const HookOverridesProvider: HookOverridesProvider<THookOverrides> = ({
     children,
     help,
     ...hookOverrides
@@ -34,32 +89,14 @@ export function createOverridesProvider<
         return [key, value];
       })
     );
+
     const value = {
       getHookOverride(hookWrapper) {
         const override =
           map.get(hookWrapper) || parent?.getHookOverride(hookWrapper) || null;
 
         if (!override && help) {
-          let error: Error;
-          if (!Object.values(hooksToOverride).includes(hookWrapper)) {
-            error = new Error(
-              `react-overridable-hooks: register "${
-                hookWrapper.isOverridableHook
-              }" by adding it to createOverridesProvider({ ${Object.keys(
-                hooksToOverride
-              ).join(", ")} })`
-            );
-          } else {
-            error = new Error(
-              `react-overridable-hooks: no override was supplied for "${hookWrapper.isOverridableHook}"`
-            );
-          }
-          Error.captureStackTrace(error, value.getHookOverride);
-          if (help === "warn") {
-            console.warn(error);
-          } else {
-            throw error;
-          }
+          handleHelp(hooksToOverride, hookWrapper, value.getHookOverride, help);
         }
 
         return override;
@@ -80,25 +117,92 @@ export function createOverridesProvider<
   return HookOverridesProvider;
 }
 
-export function testableHook<T extends AnyHook>(
-  hook: T,
+function handleHelp<
+  THookOverrides extends HookOverridesBase,
+  THook extends AnyHook
+>(
+  hooksToOverride: THookOverrides,
+  hookWrapper: OverridableHook<THook>,
+  errorScope: Function,
+  help: "warn" | "error" | true
+) {
+  // Let's throw / log some errors that help identify the hooks that can be overridden:
+  let error: Error;
+  if (!Object.values(hooksToOverride).includes(hookWrapper)) {
+    const hookNames = Object.keys(hooksToOverride).join(", ");
+    const hookName = hookWrapper.isOverridableHook;
+    error = new Error(
+      `react-overridable-hooks: register "${hookName}" by adding it to createOverridesProvider({ ${hookNames} })`
+    );
+  } else {
+    // Notes:
+    error = new Error(
+      `react-overridable-hooks: no override was supplied for "${hookWrapper.isOverridableHook}"`
+    );
+  }
+
+  // Throw or log the error:
+  Error.captureStackTrace(error, errorScope);
+  if (help === "warn") {
+    console.warn(error);
+  } else {
+    throw error;
+  }
+}
+
+export type TestableHookOptions = {
+  /**
+   * If false, the hook will be passed through untouched.
+   *
+   * Default is true for the following environments:
+   * - NODE_ENV=test (the default for Jest)
+   * - STORYBOOK=true (the default for Storybook)
+   * - TESTABLE_HOOKS_ENABLED=true (manually set by you)
+   */
+  enabled?: boolean;
+};
+
+/**
+ * Wraps a hook, so that it can be optionally overridden.
+ *
+ * By default, the returned wrapper is identical to the hook, and should be used in its place.
+ * However, a HookOverridesProvider can be used to override the hook.
+ *
+ * This is especially useful for mocking, for tests, or for Storybook integration.
+ *
+ * For non-test environments, there is no overhead; the original hook will be passed-through verbatim.
+ *
+ * @param hook - Any hook-like function
+ * @param [options] - Default: { enabled: NODE_ENV === 'test' || STORYBOOK === 'true' || TESTABLE_HOOKS_ENABLED === 'true' }
+ */
+export function testableHook<THook extends AnyHook>(
+  hook: THook,
   {
     enabled = process.env.NODE_ENV === "test" ||
       process.env.STORYBOOK === "true" ||
       process.env.TESTABLE_HOOKS_ENABLED === "true",
-  }: OverridableHookOptions = {}
+  }: TestableHookOptions = {}
 ) {
-  return overridableHook(hook, { enabled });
-}
-
-export function overridableHook<THook extends AnyHook>(
-  hook: THook,
-  { enabled = true }: OverridableHookOptions = {}
-): OverridableHook<THook> {
   if (!enabled) {
     return hook as OverridableHook<THook>;
   }
 
+  return overridableHook(hook);
+}
+
+/**
+ * Wraps a hook, so that it can be optionally overridden.
+ *
+ * By default, the returned wrapper is identical to the hook, and should be used in its place.
+ * However, a HookOverridesProvider can be used to override the hook.
+ *
+ * This is especially useful for mocking, for tests, or for Storybook integration.
+ *
+ * @param hook - Any hook-like function
+ */
+export function overridableHook<THook extends AnyHook>(
+  hook: THook
+): OverridableHook<THook> {
   const hookWrapper = ((...args) => {
     const ctx = useContext(HookOverridesContext);
     const override = ctx?.getHookOverride(hookWrapper);
@@ -118,6 +222,6 @@ export function overridableHook<THook extends AnyHook>(
   return hookWrapper;
 }
 
-function setFunctionName(fn: AnyFunction, name: string) {
+function setFunctionName(fn: Function, name: string) {
   Object.defineProperty(fn, "name", { value: name });
 }

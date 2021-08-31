@@ -1,10 +1,10 @@
 import React from "react";
 import { fireEvent, render } from "@testing-library/react";
 import { Counter, useCounter } from "./Counter";
-import { createOverridesProvider } from "../src/new/overridableHook";
+import { createHookOverridesProvider } from "../src/new/overridableHook";
 
-describe("here's how to use createOverridesProvider to override the useCounter hook", () => {
-  const CounterProvider = createOverridesProvider({ useCounter });
+describe("here's how to use createHookOverridesProvider to override the useCounter hook", () => {
+  const CounterProvider = createHookOverridesProvider({ useCounter });
 
   it("should render with the overridden value", () => {
     const increment = jest.fn();

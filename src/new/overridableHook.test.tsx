@@ -1,7 +1,11 @@
 import React from "react";
 import { act, renderHook } from "@testing-library/react-hooks";
 
-import { createOverridesProvider, overridableHook } from "./overridableHook";
+import {
+  createHookOverridesProvider,
+  overridableHook,
+  testableHook,
+} from "./overridableHook";
 
 function useCounterRaw(initial = 0) {
   const [count, setCount] = React.useState(initial);
@@ -31,7 +35,7 @@ describe("overridableHook", () => {
   const toggle = jest.fn();
   const useToggleMock = () => ({ toggled: true, toggle });
 
-  const HookOverrides = createOverridesProvider({
+  const HookOverrides = createHookOverridesProvider({
     useCounter,
     useToggle,
   });
@@ -147,7 +151,9 @@ describe("overridableHook", () => {
       const { result } = renderHook(() => useCounterAndToggle(), {
         wrapper: (p) => (
           <HookOverrides help>
-            <HookOverrides useCounter={() => {}}>{p.children}</HookOverrides>
+            <HookOverrides useCounter={useCounterMock}>
+              {p.children}
+            </HookOverrides>
           </HookOverrides>
         ),
       });
@@ -156,8 +162,8 @@ describe("overridableHook", () => {
 
   describe("when not enabled", () => {
     const useHookRaw = jest.fn();
-    const useHookEnabled = overridableHook(useHookRaw, { enabled: true });
-    const useHookDisabled = overridableHook(useHookRaw, { enabled: false });
+    const useHookEnabled = testableHook(useHookRaw, { enabled: true });
+    const useHookDisabled = testableHook(useHookRaw, { enabled: false });
 
     it("enabled hooks should return new hooks", () => {
       expect(useHookEnabled).not.toBe(useHookRaw);

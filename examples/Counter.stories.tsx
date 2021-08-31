@@ -1,13 +1,13 @@
-import React from "react";
+import React, { Component } from "react";
 import { action } from "@storybook/addon-actions";
 import { Counter, useCounter } from "./Counter";
-import { createOverridesProvider } from "../src/new/overridableHook";
+import { createHookOverridesProvider } from "../src/new/overridableHook";
 
 export default { title: "Counter Example" };
 
 const increment = action("increment");
 
-const CounterProvider = createOverridesProvider({ useCounter });
+const CounterProvider = createHookOverridesProvider({ useCounter });
 
 export const NormalBehavior = () => (
   <>
@@ -32,7 +32,7 @@ export const WithOverrides = () => (
   <>
     <p>
       We can override the hook with a mock:
-      <CounterProvider useCounter={() => ({ count: 99, increment })}>
+      <CounterProvider useCounter={(initial) => ({ count: 99, increment })}>
         <br />
         <Counter /> Renders "Count: 99"
         <br />
