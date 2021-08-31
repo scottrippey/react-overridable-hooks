@@ -1,5 +1,5 @@
 import React from "react";
-import { testableHook } from "../src/new/overridableHook";
+import { testableHook } from "../src/overridableHook";
 
 // A normal custom hook:
 export function useCounterRaw(initial = 0) {

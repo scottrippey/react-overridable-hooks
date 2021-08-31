@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render } from "@testing-library/react";
 import { Counter, useCounter } from "./Counter";
-import { createHookOverridesProvider } from "../src/new/overridableHook";
+import { createHookOverridesProvider } from "../src/overridableHook";
 
 describe("here's how to use createHookOverridesProvider to override the useCounter hook", () => {
   const CounterProvider = createHookOverridesProvider({ useCounter });
@@ -18,13 +18,13 @@ describe("here's how to use createHookOverridesProvider to override the useCount
     });
 
     expect(result.getByText("Count: 999")).toMatchInlineSnapshot(`
-      <div>
+      <span>
         Count: 
         999
         <button>
-           Increment 
+          Increment
         </button>
-      </div>
+      </span>
     `);
 
     fireEvent.click(result.getByText("Increment"));

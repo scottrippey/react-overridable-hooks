@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { action } from "@storybook/addon-actions";
 import { Counter, useCounter } from "./Counter";
-import { createHookOverridesProvider } from "../src/new/overridableHook";
+import { createHookOverridesProvider } from "../src/overridableHook";
 
 export default { title: "Counter Example" };
 
@@ -66,11 +66,14 @@ export const UsingHelp = () => (
     </p>
   </>
 );
+
 class ShowErrors extends Component {
   state = { error: null as Error | null };
+
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
+
   render() {
     if (this.state.error) {
       return <pre>{this.state.error.stack}</pre>;
