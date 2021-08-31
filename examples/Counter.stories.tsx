@@ -1,38 +1,54 @@
 import React from "react";
 import { action } from "@storybook/addon-actions";
-import { Counter, CounterProvider } from "./Counter";
+import { Counter, useCounter } from "./Counter";
+import { createOverridesProvider } from "../src/new/overridableHook";
 
 export default { title: "Counter Example" };
 
 const increment = action("increment");
 
-export const WithStaticValue = (
-  <>
-    We can provide a static value:
-    <CounterProvider value={{ count: 99, increment }}>
-      <Counter /> Renders "Count: 99"
-    </CounterProvider>
-  </>
-);
+const CounterProvider = createOverridesProvider({ useCounter });
 
-export const WithDynamicValue = (
+export const NormalBehavior = () => (
   <>
-    or a dynamic value:
-    <CounterProvider
-      value={(initial = 0) => ({ count: initial * 1000, increment })}
-    >
-      <Counter initial={5} /> Renders "Count: 5000"
-      <Counter initial={6} /> Renders "Count: 6000"
-    </CounterProvider>
-  </>
-);
-
-export const WithNoValue = (
-  <>
-    or even no value (uses actual hook):
-    <Counter /> Renders "Count: 0"
-    <CounterProvider>
+    <p>
+      The `useCounter` hook behaves normally when no Provider is used:
+      <br />
       <Counter /> Renders "Count: 0"
-    </CounterProvider>
+      <br />
+      <Counter initial={10} /> Renders "Count: 10"
+    </p>
+    <p>
+      or when no Override is provided:
+      <CounterProvider>
+        <br />
+        <Counter /> Renders "Count: 0"
+      </CounterProvider>
+    </p>
   </>
 );
+
+export const WithOverrides = () => (
+  <>
+    <p>
+      We can override the hook with a mock:
+      <CounterProvider useCounter={() => ({ count: 99, increment })}>
+        <br />
+        <Counter /> Renders "Count: 99"
+        <br />
+        <Counter initial={10} /> Renders "Count: 99"
+      </CounterProvider>
+    </p>
+    <p>
+      no matter how deep the hook is nested:
+      <CounterProvider useCounter={() => ({ count: 99, increment })}>
+        <br />
+        <NestedCounter /> Renders "Count: 99"
+      </CounterProvider>
+    </p>
+  </>
+);
+
+function NestedCounter() {
+  return <Counter />;
+}

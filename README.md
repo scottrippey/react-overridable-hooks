@@ -16,14 +16,14 @@ Creates an overridable version of a hook.
 import { overridableHook } from "react-overridable-hooks";
 
 // A normal custom hook:
-function useCounterHook() {
+function useCounterRaw() {
   const [ count, setCount ] = React.useState(0);
   const increment = () => setCount((c) => c + 1);
   return { count, increment };
 }
 
 // An overridable version of the hook:
-export const [ useCounter, CounterOverride ] = overridableHook(useCounterHook);
+export const [ useCounter, CounterOverride ] = overridableHook(useCounterRaw);
 
 // A component uses the hook normally:
 export const Counter = () => {
@@ -69,7 +69,7 @@ describe('Counter', () => {
 ```jsx
 import { testableHook } from 'react-overridable-hooks';
 
-export const [ useCounter, CounterOverride ] = testableHook(useCounterHook);
+export const [ useCounter, CounterOverride ] = testableHook(useCounterRaw);
 ```
 
 Same syntax as `overridableHook`, but hooks are only overridable in these scenarios:  
@@ -82,7 +82,7 @@ This means:
 - Hooks **cannot** be overridden in **development** or **production**.
 - Hooks **must** be overridden in **tests** or **storybook**.
 
-This ensures zero-performance overhead in production (because `useCounter === useCounterHook`) while still making your components testable.
+This ensures zero-performance overhead in production (because `useCounter === useCounterRaw`) while still making your components testable.
 
 ## More Examples
 - Storybook Examples: [./examples/Counter.stories.tsx](./examples/Counter.stories.tsx)
