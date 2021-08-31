@@ -52,3 +52,29 @@ export const WithOverrides = () => (
 function NestedCounter() {
   return <Counter />;
 }
+
+export const UsingHelp = () => (
+  <>
+    <p>
+      When the `help` property is used, missing overrides will throw an error:
+      <ShowErrors>
+        <CounterProvider help>
+          <br />
+          <Counter /> Renders an error!
+        </CounterProvider>
+      </ShowErrors>
+    </p>
+  </>
+);
+class ShowErrors extends Component {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return <pre>{this.state.error.stack}</pre>;
+    }
+    return <>{this.props.children}</>;
+  }
+}
