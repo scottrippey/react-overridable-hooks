@@ -114,18 +114,28 @@ describe("overridableHook", () => {
   describe("with the 'help' flag", () => {
     const useUnexpectedHook = overridableHook(function unexpectedHook() {});
 
-    it("unexpected hooks throw errors", () => {
+    let warn: jest.SpyInstance;
+    beforeEach(() => {
+      warn = jest.spyOn(console, "warn");
+      warn.mockReturnValue(undefined);
+    });
+    afterEach(() => {
+      warn.mockRestore();
+    });
+
+    it("unexpected hooks log errors", () => {
       const { result } = renderHook(() => useUnexpectedHook(), {
         wrapper: (p) => <HookOverrides help {...p} />,
       });
-      expect(result.error).toMatchInlineSnapshot(
+      expect(warn).toHaveBeenCalled();
+      expect(warn.mock.calls[0][0]).toMatchInlineSnapshot(
         `[Error: react-overridable-hooks: register "unexpectedHook" by adding it to createOverridesProvider({ useCounter, useToggle })]`
       );
     });
 
     it("empty hooks throw errors", () => {
       const { result } = renderHook(() => useCounter(), {
-        wrapper: (p) => <HookOverrides help {...p} />,
+        wrapper: (p) => <HookOverrides help="error" {...p} />,
       });
       expect(result.error).toMatchInlineSnapshot(
         `[Error: react-overridable-hooks: no override was supplied for "useCounterRaw"]`

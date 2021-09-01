@@ -151,10 +151,10 @@ function handleHelp<
 
   // Throw or log the error:
   Error.captureStackTrace(error, errorScope);
-  if (help === "warn") {
-    console.warn(error);
-  } else {
+  if (help === "error") {
     throw error;
+  } else {
+    console.warn(error);
   }
 }
 

@@ -57,15 +57,15 @@ const EmptyProvider = createHookOverridesProvider({});
 export const UsingHelp = () => (
   <>
     <p>
-      When the `help` property is used, missing overrides will throw an error:
+      When the `help` property is used, missing overrides will be logged:
       <ShowErrors>
         <EmptyProvider help>
           <br />
-          <Counter /> Renders an error!
+          <Counter /> Logs a warning to the console
         </EmptyProvider>
       </ShowErrors>
       <ShowErrors>
-        <CounterProvider help>
+        <CounterProvider help="error">
           <br />
           <Counter /> Renders an error!
         </CounterProvider>
