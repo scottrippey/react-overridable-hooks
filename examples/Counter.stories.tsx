@@ -53,10 +53,17 @@ function NestedCounter() {
   return <Counter />;
 }
 
+const EmptyProvider = createHookOverridesProvider({});
 export const UsingHelp = () => (
   <>
     <p>
       When the `help` property is used, missing overrides will throw an error:
+      <ShowErrors>
+        <EmptyProvider help>
+          <br />
+          <Counter /> Renders an error!
+        </EmptyProvider>
+      </ShowErrors>
       <ShowErrors>
         <CounterProvider help>
           <br />

@@ -97,6 +97,38 @@ describe('Counter', () => {
 });
 ```
 
+### Using `defaults`
+You can specify default overrides to `createHookOverridesProvider`:
+
+```jsx
+const HookOverrides = createHookOverridesProvider(
+  { useCounter },
+  { defaults: { useCounter: () => ({ count: 999, increment: action('increment')}) } }
+);
+```
+You can then use the provider without specifying the override each time:
+```jsx
+export const WithDefaults = () => (
+  <HookOverrides>
+    <Counter /> <!-- renders "Count: 999" -->
+  </HookOverrides>
+)
+```
+
+### Using `help` mode
+
+When rendering components, it can sometimes be tricky to determine what overridable hooks can be overridden.  Enabling the `help` property will help you identify all overridable hooks that are being rendered.
+
+```jsx
+export const WithDefaults = () => (
+  <HookOverrides help>
+    <Counter /> <!-- Logs react-overridable-hooks: register "useCounter" by adding it to createOverridesProvider({  }) -->
+  </HookOverrides>
+)
+```
+
+The `help` option will log all these missing hooks to the console, making it easy to configure things correctly.
+
 ## More Examples
 
 - Storybook Examples: [./examples/Counter.stories.tsx](./examples/Counter.stories.tsx)
