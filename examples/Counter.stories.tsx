@@ -67,6 +67,19 @@ export const UsingHelp = () => (
   </>
 );
 
+const CounterProviderWithDefaults = createHookOverridesProvider(
+  { useCounter },
+  { defaults: { useCounter: () => ({ count: 99, increment }) } }
+);
+export const UsingDefaults = () => (
+  <>
+    <CounterProviderWithDefaults>
+      <br />
+      <Counter /> Renders "Count: 99"
+    </CounterProviderWithDefaults>
+  </>
+);
+
 class ShowErrors extends Component {
   state = { error: null as Error | null };
 

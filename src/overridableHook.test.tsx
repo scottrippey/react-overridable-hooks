@@ -176,4 +176,32 @@ describe("overridableHook", () => {
       expect(useHookRaw).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("with defaults", () => {
+    const HookOverridesWithDefaults = createHookOverridesProvider(
+      { useCounter },
+      { defaults: { useCounter: () => ({ count: 9999, increment }) } }
+    );
+
+    it("with an empty Provider, the default hook overrides are used", () => {
+      const { result } = renderHook(() => useCounter(), {
+        wrapper: (p) => <HookOverridesWithDefaults {...p} />,
+      });
+      expect(result.current).toMatchObject({ count: 9999 });
+      act(() => result.current.increment());
+      expect(result.current).toMatchObject({ count: 9999 });
+    });
+
+    it("a hook can be overridden normally with a mock hook", () => {
+      const { result, rerender } = renderHook(() => useCounter(), {
+        wrapper: (p) => (
+          <HookOverridesWithDefaults useCounter={useCounterMock} {...p} />
+        ),
+      });
+      expect(result.current).toMatchObject({ count: 55 });
+      act(() => result.current.increment());
+      expect(result.current).toMatchObject({ count: 55 });
+      expect(increment).toHaveBeenCalled();
+    });
+  });
 });

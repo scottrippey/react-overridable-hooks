@@ -11,12 +11,14 @@ export type OverridableHook<THook extends AnyHook> = THook & {
 };
 
 // Used internally
-type HookOverridesType = {
+type HookOverridesContextType = {
   getHookOverride<THook extends OverridableHook<AnyHook>>(
     hookWrapper: THook
   ): THook | null;
 };
-const HookOverridesContext = createContext<HookOverridesType | null>(null);
+const HookOverridesContext = createContext<HookOverridesContextType | null>(
+  null
+);
 HookOverridesContext.displayName = "HookOverridesContext";
 
 /**
@@ -26,28 +28,26 @@ HookOverridesContext.displayName = "HookOverridesContext";
  *
  * If needed, add the `help` or `help='warn'` property to help identify which hooks can be overridden.
  */
-type HookOverridesProvider<THookOverrides extends HookOverridesBase> = FC<
-  {
-    /**
-     * When true, an error will be thrown for any overridable hooks that are not mocked.
-     * This makes it easy to find overridable hooks.
-     * Once all overridable hooks are mocked, the `help` prop can be removed.
-     *
-     * "warn" will simply log to the console, instead of throwing an error.
-     */
-    help?: boolean | "warn" | "error";
-  } & {
-    /**
-     * Overrides a hook with a new function.  Signatures should match.
-     * Overrides are optional; if not supplied, the original hook will be used.
-     */
-    [P in keyof THookOverrides]?: THookOverrides[P] extends OverridableHook<
-      infer THook
-    >
-      ? THook
-      : THookOverrides[P];
-  }
->;
+type HookOverridesProps<THookOverrides extends HookOverridesBase> = {
+  /**
+   * When true, an error will be thrown for any overridable hooks that are not mocked.
+   * This makes it easy to find overridable hooks.
+   * Once all overridable hooks are mocked, the `help` prop can be removed.
+   *
+   * "warn" will simply log to the console, instead of throwing an error.
+   */
+  help?: boolean | "warn" | "error";
+} & {
+  /**
+   * Overrides a hook with a new function.  Signatures should match.
+   * Overrides are optional; if not supplied, the original hook will be used.
+   */
+  [P in keyof THookOverrides]?: THookOverrides[P] extends OverridableHook<
+    infer THook
+  >
+    ? THook
+    : THookOverrides[P];
+};
 
 export type HookOverridesBase = {
   /**
@@ -72,15 +72,23 @@ export type HookOverridesBase = {
  *
  * @param hooksToOverride An object that lists all hooks which this provider should be able to override.
  *                        These hooks must have been wrapped with `testableHook` or `overridableHook`.
+ * @param options
  */
 export function createHookOverridesProvider<
   THookOverrides extends HookOverridesBase
->(hooksToOverride: THookOverrides) {
-  const HookOverridesProvider: HookOverridesProvider<THookOverrides> = ({
+>(
+  hooksToOverride: THookOverrides,
+  options?: { defaults?: HookOverridesProps<THookOverrides> }
+) {
+  const HookOverridesProvider: FC<HookOverridesProps<THookOverrides>> = ({
     children,
-    help,
+    help = options?.defaults?.help,
     ...hookOverrides
   }) => {
+    if (options?.defaults) {
+      hookOverrides = { ...options.defaults, ...hookOverrides };
+    }
+
     const parent = useContext(HookOverridesContext);
     const map = new Map(
       Object.keys(hookOverrides).map((hookName) => {
@@ -101,7 +109,7 @@ export function createHookOverridesProvider<
 
         return override;
       },
-    } as HookOverridesType;
+    } as HookOverridesContextType;
 
     return (
       <HookOverridesContext.Provider value={value}>
