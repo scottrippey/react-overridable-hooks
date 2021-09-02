@@ -45,8 +45,8 @@ type HookOverridesProps<THookOverrides extends HookOverridesBase> = {
   [P in keyof THookOverrides]?: THookOverrides[P] extends OverridableHook<
     infer THook
   >
-    ? THook
-    : THookOverrides[P];
+    ? THook | null
+    : never;
 };
 
 export type HookOverridesBase = {
@@ -83,14 +83,15 @@ export function createHookOverridesProvider<
   const HookOverridesProvider: FC<HookOverridesProps<THookOverrides>> = ({
     children,
     help = options?.defaults?.help,
-    ...hookOverrides
+    ...rest
   }) => {
+    let hookOverrides = (rest as any) as THookOverrides;
     if (options?.defaults) {
       hookOverrides = { ...options.defaults, ...hookOverrides };
     }
 
     const parent = useContext(HookOverridesContext);
-    const map = new Map(
+    const map = new Map<OverridableHook<AnyHook>, AnyHook | null>(
       Object.keys(hookOverrides).map((hookName) => {
         const key = hooksToOverride[hookName];
         const value = hookOverrides[hookName];
