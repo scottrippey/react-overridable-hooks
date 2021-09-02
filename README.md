@@ -2,7 +2,7 @@
 
 An easy way to mock custom React hooks. Especially useful for:
 
-- Mocking any UI or data state in Storybook
+- Mocking a component's UI state or data in Storybook
 - Mocking state for Unit testing
 - Overriding hooks depending on context
 
@@ -10,7 +10,24 @@ An easy way to mock custom React hooks. Especially useful for:
 npm install --save react-overridable-hooks
 ```
 
+# Guide
+
+Please see [GUIDE.md](./GUIDE.md) to see how to use `testableHook` to create **testable**, **mockable** components.
+
+
 # API
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [`overridableHook` and `testableHook`](#overridablehook-and-testablehook)
+- [`createHookOverridesProvider`](#createhookoverridesprovider)
+  - [Using `defaults`](#using-defaults)
+  - [Using `help` mode](#using-help-mode)
+- [More Examples](#more-examples)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## `overridableHook` and `testableHook`
 
